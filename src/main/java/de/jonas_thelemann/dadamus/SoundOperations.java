@@ -1,42 +1,75 @@
 package de.jonas_thelemann.dadamus;
 
-import marytts.LocalMaryInterface;
-import marytts.MaryInterface;
-import marytts.util.data.audio.MaryAudioUtils;
-import marytts.util.data.audio.SilenceAudioInputStream;
+import com.github.waywardgeek.sonic.Sonic;
 
-import javax.sound.sampled.AudioInputStream;
-import java.io.SequenceInputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import javax.sound.sampled.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
+/**
+ * Provides a method to change an {@link AudioInputStream}s speed.
+ */
 class SoundOperations {
-  static void maryIt(String input) throws Exception {
-    String[] data = input.split("\\(pause\\[.+?\\]\\)");
 
-    List<String> allMatches = new ArrayList<String>();
-    Matcher m = Pattern.compile("\\(pause\\[.+?\\]\\)").matcher(input);
+    /**
+     * Utilizing the <a href="https://github.com/waywardgeek/sonic">Sonic algorithm</a>, this method changes (only) the speed and thus the duration of an {@link AudioInputStream}.
+     *
+     * @param stream The stream of which the duration is to be changed.
+     * @param targetMs The target duration.
+     * @return An {@link AudioInputStream}, which is equal to the given {@link AudioInputStream}, but has a given (fixed) duration.
+     * @throws IOException If the given stream cannot be read.
+     * @throws LineUnavailableException If the {@link AudioSystem} cannot get the required line.
+     */
+    public static AudioInputStream speed(AudioInputStream stream, float targetMs) throws IOException, LineUnavailableException {
+        float durationInMillis = 1000 * stream.getFrameLength() / stream.getFormat().getFrameRate();
+        float speed = durationInMillis / targetMs;
+        float pitch = 1.0f;
+        float rate = 1.0f;
+        float volume = 1.0f;
+        boolean emulateChordPitch = false;
+        int quality = 0;
 
-    while (m.find()) {
-      allMatches.add(m.group());
+        AudioFormat format = stream.getFormat();
+        int sampleRate = (int) format.getSampleRate();
+        int numChannels = format.getChannels();
+        SourceDataLine.Info info = new DataLine.Info(SourceDataLine.class, format,
+                ((int) stream.getFrameLength() * format.getFrameSize()));
+        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
+        Sonic sonic = new Sonic(sampleRate, numChannels);
+        int bufferSize = line.getBufferSize();
+        byte[] inBuffer = new byte[bufferSize];
+        byte[] outBuffer = new byte[bufferSize];
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        int numRead, numWritten;
+
+        sonic.setSpeed(speed);
+        sonic.setPitch(pitch);
+        sonic.setRate(rate);
+        sonic.setVolume(volume);
+        sonic.setChordPitch(emulateChordPitch);
+        sonic.setQuality(quality);
+
+        do {
+            numRead = stream.read(inBuffer, 0, bufferSize);
+
+            if (numRead <= 0) {
+                sonic.flushStream();
+            } else {
+                sonic.writeBytesToStream(inBuffer, numRead);
+            }
+
+            do {
+                numWritten = sonic.readBytesFromStream(outBuffer, bufferSize);
+                if (numWritten > 0) {
+                    baos.write(outBuffer, 0, numWritten);
+                }
+            } while (numWritten > 0);
+        } while (numRead > 0);
+
+        byte[] audioBytes = baos.toByteArray();
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(audioBytes);
+
+        return new AudioInputStream(byteArrayInputStream, format, audioBytes.length / format.getFrameSize());
     }
-
-    MaryInterface marytts = new LocalMaryInterface();
-
-    Set<String> voices = marytts.getAvailableVoices();
-    marytts.setVoice(voices.iterator().next());
-
-    AudioInputStream audio = marytts.generateAudio(data[0]);
-
-    SilenceAudioInputStream silence = new SilenceAudioInputStream(1.0, audio.getFormat());
-
-    AudioInputStream appendedFiles = new AudioInputStream(new SequenceInputStream(audio, silence), audio.getFormat(), audio.getFrameLength() + silence.getFrameLength());
-
-    silence.close();
-
-    MaryAudioUtils.writeWavFile(MaryAudioUtils.getSamplesAsDoubleArray(appendedFiles), "output.wav", audio.getFormat());
-  }
 }
