@@ -47,6 +47,7 @@ class SoundOperations {
         sonic.setPitch(pitch);
         sonic.setRate(rate);
         sonic.setVolume(volume);
+        //noinspection ConstantConditions
         sonic.setChordPitch(emulateChordPitch);
         sonic.setQuality(quality);
 
