@@ -1,6 +1,5 @@
-package de.jonas_thelemann.dadamus.linguistic;
+package de.jonas_thelemann.dadamus;
 
-import de.jonas_thelemann.dadamus.Generator;
 import org.apache.commons.math3.distribution.EnumeratedIntegerDistribution;
 
 import java.util.HashMap;

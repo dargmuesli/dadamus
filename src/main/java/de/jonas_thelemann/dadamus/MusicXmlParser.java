@@ -1,6 +1,5 @@
 package de.jonas_thelemann.dadamus;
 
-import de.jonas_thelemann.dadamus.linguistic.LetterLinguistic;
 import marytts.LocalMaryInterface;
 import marytts.MaryInterface;
 import marytts.exceptions.MaryConfigurationException;
