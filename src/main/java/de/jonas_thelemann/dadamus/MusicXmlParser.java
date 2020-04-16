@@ -88,8 +88,9 @@ public class MusicXmlParser {
      */
     public static ArrayList<ArrayList<AudioInputStream>> mxmlFileToToneLists(File inputFile) throws Marshalling.UnmarshallingException, FileNotFoundException {
         ArrayList<ArrayList<AudioInputStream>> toneLists = new ArrayList<>();
+        FileInputStream fileInputStream = new FileInputStream(inputFile);
 
-        ScorePartwise scorePartwise = (ScorePartwise) Marshalling.unmarshal(new FileInputStream(inputFile));
+        ScorePartwise scorePartwise = (ScorePartwise) Marshalling.unmarshal(fileInputStream);
         scorePartwise.getPart().forEach(part -> {
             ArrayList<AudioInputStream> tones = new ArrayList<>();
 
@@ -131,6 +132,12 @@ public class MusicXmlParser {
                     } else {
                         throw new NullArgumentException("Could not add tone!");
                     }
+
+                    try {
+                        audioInputStream.close();
+                    } catch (IOException e) {
+                        LogManager.getLogger().error("Could not close AudioInputStream!", e);
+                    }
                 } else if (o instanceof Attributes || o instanceof Barline || o instanceof Print) {
                     LogManager.getLogger().debug("Ignoring object as instance of Attributes, Barline and Print.");
                 } else {
@@ -144,6 +151,12 @@ public class MusicXmlParser {
                 maryTts.setVoice(maryVoices.next());
             }
         });
+
+        try {
+            fileInputStream.close();
+        } catch (IOException e) {
+            LogManager.getLogger().error("Could not close FileInputStream!", e);
+        }
 
         return toneLists;
     }
